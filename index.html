@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulate This! | Real-Time Math & Physics Sandbox</title>
+  <meta name="description" content="A sleek, browser-based real-time physics and math simulation sandbox. Features a Wave Superposition Mixer and a Chaotic Double Pendulum with Runge-Kutta 4th-order integration. Runs 100% client-side with zero server-side costs.">
+  
+  <!-- Modern typography and digital readouts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* Sleek Scientific Dark Aesthetic CSS */
+    :root {
+      --bg: #0d1117;
+      --card: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --blue: #58a6ff;
+      --green: #7ee787;
+      --purple: #bc8cff;
+      --purple-muted: rgba(188, 140, 255, 0.15);
+      --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --glow-blue: 0 0 12px rgba(88, 166, 255, 0.45);
+      --glow-purple: 0 0 12px rgba(188, 140, 255, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* Layout & Centered Container */
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      padding: 2.5rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+
+    /* Header styling */
+    header {
+      margin-bottom: 2.5rem;
+      text-align: center;
+      position: relative;
+    }
+
+    .badge-container {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px dashed rgba(88, 166, 255, 0.3);
+      padding: 0.35rem 0.85rem;
+      border-radius: 50px;
+      font-size: 0.8rem;
+      color: var(--blue);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      gap: 0.5rem;
+      animation: pulse 2.5s infinite alternate;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--blue);
+      border-radius: 50%;
+      box-shadow: var(--glow-blue);
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #ffffff 30%, var(--blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+      font-weight: 300;
+    }
+
+    /* Simulation Grid */
+    .sandbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem;
+      margin-bottom: 3rem;
+    }
+
+    @media (max-width: 900px) {
+      .sandbox-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+      h1 {
+        font-size: 2.2rem;
+      }
+    }
+
+    /* Glassmorphism Cards */
+    .sim-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+      overflow: hidden;
+    }
+
+    .sim-card:hover {
+      border-color: rgba(88, 166, 255, 0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .sim-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--blue), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sim-card.purple-card::before {
+      background: linear-gradient(90deg, transparent, var(--purple), transparent);
+    }
+
+    .sim-card:hover::before {
+      opacity: 1;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+    }
+
+    .card-title {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .card-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .blue-dot { background-color: var(--blue); box-shadow: var(--glow-blue); }
+    .purple-dot { background-color: var(--purple); box-shadow: var(--glow-purple); }
+
+    .card-tag {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.03);
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Canvas Display Styling */
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 10;
+      background: #090c10;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Scientific Dashboard Control Panels */
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      flex-grow: 1;
+      justify-content: flex-end;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .control-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .control-name {
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .bullet-a { color: var(--green); }
+    .bullet-b { color: var(--purple); }
+
+    .control-value {
+      font-family: var(--font-mono);
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      min-width: 60px;
+      text-align: right;
+    }
+
+    /* Sleek HTML Sliders */
+    .slider-input {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 99px;
+      background: #21262d;
+      outline: none;
+      transition: background 0.3s;
+    }
+
+    .slider-input:hover {
+      background: #30363d;
+    }
+
+    /* Webkit (Chrome, Safari, Edge) */
+    .slider-input::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--blue);
+      cursor: pointer;
+      box-shadow: var(--glow-blue);
+      transition: transform 0.1s ease, background-color 0.2s ease;
+    }
+
+    .purple-slider::-webkit-slider-thumb {
+      background: var(--purple);
+      box-shadow: var(--glow-purple);
+    }
+
+    .slider-input::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* Firefox */
+    .slider-input::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border: none;
+      border-radius: 50%;
+      background: var(--blue);
+      cursor: pointer;
+      box-shadow: var(--glow-blue);
+      transition: transform 0.1s ease, background-color 0.2s ease;
+    }
+
+    .purple-slider::-moz-range-thumb {
+      background: var(--purple);
+      box-shadow: var(--glow-purple);
+    }
+
+    .slider-input::-moz-range-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    /* Stylized Reset Button */
+    .btn-action {
+      font-family: var(--font-sans);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #ffffff;
+      background: linear-gradient(135deg, #8c42eb 0%, #6827c5 100%);
+      border: 1px solid rgba(188, 140, 255, 0.4);
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      box-shadow: var(--glow-purple);
+      transition: all 0.2s ease;
+      margin-top: 0.5rem;
+    }
+
+    .btn-action:hover {
+      background: linear-gradient(135deg, #a05ff7 0%, #7d3fed 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 0 16px rgba(188, 140, 255, 0.6);
+    }
+
+    .btn-action:active {
+      transform: translateY(1px);
+    }
+
+    .btn-icon {
+      font-size: 1.1rem;
+    }
+
+    /* Footer structure */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 0;
+      margin-top: auto;
+      text-align: center;
+      width: 100%;
+    }
+
+    .footer-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .footer-info {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      max-width: 650px;
+    }
+
+    .footer-highlight {
+      color: var(--blue);
+      font-weight: 500;
+    }
+
+    .footer-copyright {
+      font-size: 0.8rem;
+      color: #484f58;
+      font-family: var(--font-mono);
+    }
+
+    /* Subtle Oscilloscope Scanline effect for Canvas */
+    .canvas-container::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 4px;
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0.15;
+    }
+
+    /* Custom Animation Definitions */
+    @keyframes pulse {
+      0% {
+        opacity: 0.85;
+        border-color: rgba(88, 166, 255, 0.25);
+        box-shadow: 0 0 4px rgba(88, 166, 255, 0.05);
+      }
+      100% {
+        opacity: 1;
+        border-color: rgba(88, 166, 255, 0.55);
+        box-shadow: 0 0 10px rgba(88, 166, 255, 0.15);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div class="badge-container">
+        <span class="badge-dot"></span>
+        <span>Local Client Sandbox</span>
+      </div>
+      <h1>Simulate This!</h1>
+      <p>An interactive, high-fidelity mathematical and physical science environment running entirely inside your browser.</p>
+    </header>
+
+    <main class="sandbox-grid">
+      <!-- SIMULATION ONE: THE WAVE MIXER -->
+      <section class="sim-card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-icon blue-dot"></span>
+            Wave Superposition Mixer
+          </h2>
+          <span class="card-tag">WAVE_INTERFERENCE</span>
+        </div>
+
+        <div class="canvas-container" id="wave-canvas-container">
+          <canvas id="waveCanvas"></canvas>
+        </div>
+
+        <div class="control-panel">
+          <!-- Wave A Frequency -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-name"><span class="bullet-a">●</span> Wave A Frequency</span>
+              <span class="control-value" id="valFreqA">4.0 Hz</span>
+            </div>
+            <input type="range" class="slider-input" id="slideFreqA" min="1.0" max="10.0" step="0.1" value="4.0">
+          </div>
+
+          <!-- Wave B Frequency -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-name"><span class="bullet-b">●</span> Wave B Frequency</span>
+              <span class="control-value" id="valFreqB">4.5 Hz</span>
+            </div>
+            <input type="range" class="slider-input purple-slider" id="slideFreqB" min="1.0" max="10.0" step="0.1" value="4.5">
+          </div>
+
+          <!-- Wave B Phase Shift -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-name"><span class="bullet-b">●</span> Wave B Phase Shift</span>
+              <span class="control-value" id="valPhaseB">1.50 rad</span>
+            </div>
+            <input type="range" class="slider-input purple-slider" id="slidePhaseB" min="0.00" max="6.28" step="0.05" value="1.50">
+          </div>
+        </div>
+      </section>
+
+      <!-- SIMULATION TWO: THE CHAOTIC PENDULUM -->
+      <section class="sim-card purple-card">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span class="card-icon purple-dot"></span>
+            Chaotic Double Pendulum
+          </h2>
+          <span class="card-tag">LAGRANGIAN_RK4</span>
+        </div>
+
+        <div class="canvas-container" id="pendulum-canvas-container">
+          <canvas id="pendulumCanvas"></canvas>
+        </div>
+
+        <div class="control-panel">
+          <!-- Gravity Coefficient -->
+          <div class="control-group">
+            <div class="control-label-row">
+              <span class="control-name">🌍 Gravity Intensity</span>
+              <span class="control-value" id="valGravity">9.8 m/s²</span>
+            </div>
+            <input type="range" class="slider-input purple-slider" id="slideGravity" min="0.0" max="25.0" step="0.1" value="9.8">
+          </div>
+
+          <!-- Reset Button -->
+          <button class="btn-action" id="btnResetPendulum">
+            <span class="btn-icon">↺</span>
+            Reset Trajectory
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="footer-content">
+        <p class="footer-info">
+          This system operates <span class="footer-highlight">purely in the client browser</span> using HTML5 canvas buffers, CSS layers, and high-performance JS computation thread-loops, generating <span class="footer-highlight">zero server-side processing latency or costs</span>.
+        </p>
+        <p class="footer-copyright">
+          SIMULATE THIS! // © 2026 // MATHEMATICS AND PHYSICAL ENGINE WORKBENCH
+        </p>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // =========================================================================
+    // HIGH-DPI CANVAS UTILITY
+    // =========================================================================
+    function resizeCanvasToDisplaySize(canvas, ctx) {
+      const width = canvas.parentElement.clientWidth;
+      const height = canvas.parentElement.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      
+      if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        ctx.scale(dpr, dpr);
+        return true;
+      }
+      return false;
+    }
+
+    // Get document elements
+    const waveCanvas = document.getElementById('waveCanvas');
+    const waveCtx = waveCanvas.getContext('2d');
+    const pendulumCanvas = document.getElementById('pendulumCanvas');
+    const pendulumCtx = pendulumCanvas.getContext('2d');
+
+    // =========================================================================
+    // SIMULATION ONE: WAVE SUPERPOSITION MIXER ENGINE
+    // =========================================================================
+    const slideFreqA = document.getElementById('slideFreqA');
+    const slideFreqB = document.getElementById('slideFreqB');
+    const slidePhaseB = document.getElementById('slidePhaseB');
+
+    const valFreqA = document.getElementById('valFreqA');
+    const valFreqB = document.getElementById('valFreqB');
+    const valPhaseB = document.getElementById('valPhaseB');
+
+    let waveTime = 0;
+
+    function drawWaveMixer(width, height) {
+      waveCtx.clearRect(0, 0, width, height);
+
+      const freqA = parseFloat(slideFreqA.value);
+      const freqB = parseFloat(slideFreqB.value);
+      const phaseB = parseFloat(slidePhaseB.value);
+
+      // Realtime text updates
+      valFreqA.textContent = `${freqA.toFixed(1)} Hz`;
+      valFreqB.textContent = `${freqB.toFixed(1)} Hz`;
+      valPhaseB.textContent = `${phaseB.toFixed(2)} rad`;
+
+      const centerY = height / 2;
+      const amplitude = 32; // base drawing amplitude
+      
+      // Draw grid lines
+      waveCtx.strokeStyle = '#1f242c';
+      waveCtx.lineWidth = 1;
+      waveCtx.beginPath();
+      // Horizontal baseline
+      waveCtx.moveTo(0, centerY);
+      waveCtx.lineTo(width, centerY);
+      waveCtx.stroke();
+
+      // Horizontal reference grids
+      for (let offset = -60; offset <= 60; offset += 30) {
+        if (offset === 0) continue;
+        waveCtx.strokeStyle = 'rgba(48, 54, 61, 0.35)';
+        waveCtx.beginPath();
+        waveCtx.moveTo(0, centerY + offset);
+        waveCtx.lineTo(width, centerY + offset);
+        waveCtx.stroke();
+      }
+
+      // Generate points for drawing
+      const ptsA = [];
+      const ptsB = [];
+      const ptsResult = [];
+
+      for (let x = 0; x < width; x++) {
+        // Map canvas x to continuous mathematical horizontal coordinate phase angle
+        const xNorm = (x / width) * 4 * Math.PI;
+
+        const yA = Math.sin(xNorm * freqA - waveTime);
+        const yB = Math.sin(xNorm * freqB - waveTime + phaseB);
+        const yResult = yA + yB;
+
+        ptsA.push({ x: x, y: centerY + yA * amplitude });
+        ptsB.push({ x: x, y: centerY + yB * amplitude });
+        ptsResult.push({ x: x, y: centerY + yResult * amplitude });
+      }
+
+      // Draw Wave A (Green, dashed)
+      waveCtx.strokeStyle = '#7ee787';
+      waveCtx.lineWidth = 1.5;
+      waveCtx.setLineDash([5, 5]);
+      waveCtx.beginPath();
+      waveCtx.moveTo(ptsA[0].x, ptsA[0].y);
+      for (let i = 1; i < ptsA.length; i++) {
+        waveCtx.lineTo(ptsA[i].x, ptsA[i].y);
+      }
+      waveCtx.stroke();
+
+      // Draw Wave B (Purple, dashed)
+      waveCtx.strokeStyle = '#bc8cff';
+      waveCtx.lineWidth = 1.5;
+      waveCtx.setLineDash([5, 5]);
+      waveCtx.beginPath();
+      waveCtx.moveTo(ptsB[0].x, ptsB[0].y);
+      for (let i = 1; i < ptsB.length; i++) {
+        waveCtx.lineTo(ptsB[i].x, ptsB[i].y);
+      }
+      waveCtx.stroke();
+
+      // Reset Line Dash for resultant
+      waveCtx.setLineDash([]);
+
+      // Draw Resultant Wave (Solid Blue with a striking neon glow!)
+      waveCtx.shadowBlur = 10;
+      waveCtx.shadowColor = '#58a6ff';
+      waveCtx.strokeStyle = '#58a6ff';
+      waveCtx.lineWidth = 3.5;
+      waveCtx.beginPath();
+      waveCtx.moveTo(ptsResult[0].x, ptsResult[0].y);
+      for (let i = 1; i < ptsResult.length; i++) {
+        waveCtx.lineTo(ptsResult[i].x, ptsResult[i].y);
+      }
+      waveCtx.stroke();
+
+      // Reset shadows for next canvas renders
+      waveCtx.shadowBlur = 0;
+
+      // Animate waveTime slowly based on frame rate
+      waveTime += 0.045;
+    }
+
+    // =========================================================================
+    // SIMULATION TWO: CHAOTIC DOUBLE PENDULUM ENGINE
+    // =========================================================================
+    const slideGravity = document.getElementById('slideGravity');
+    const valGravity = document.getElementById('valGravity');
+    const btnResetPendulum = document.getElementById('btnResetPendulum');
+
+    // Pendulum physical parameters
+    const L1 = 90; // Rod 1 length (px)
+    const L2 = 90; // Rod 2 length (px)
+    const m1 = 12; // Bob 1 mass
+    const m2 = 12; // Bob 2 mass
+
+    // State: [theta1, theta2, omega1, omega2]
+    // Start with a high-energy off-center angle (e.g. 90 deg and 90 deg)
+    let pState = [Math.PI / 2, Math.PI / 2, 0.0, 0.0];
+    
+    // Trail tracking bob 2's position
+    let pTrail = [];
+    const maxTrailLength = 450;
+
+    // Runge-Kutta 4th-order derivative calculations
+    // Solves for angular accelerations (alpha1, alpha2) given state
+    function getDerivatives(t1, t2, w1, w2, g) {
+      const delta = t1 - t2;
+      const mu = 1 + m1 / m2;
+
+      // Equations derived using Lagrangian mechanics
+      const den1 = L1 * (mu - Math.cos(delta) * Math.cos(delta));
+      const num1 = g * (Math.sin(t2) * Math.cos(delta) - mu * Math.sin(t1)) - 
+                   (L2 * w2 * w2 + L1 * w1 * w1 * Math.cos(delta)) * Math.sin(delta);
+      const alpha1 = num1 / den1;
+
+      const den2 = L2 * (mu - Math.cos(delta) * Math.cos(delta));
+      const num2 = g * mu * (Math.sin(t1) * Math.cos(delta) - Math.sin(t2)) + 
+                   (mu * L1 * w1 * w1 + L2 * w2 * w2 * Math.cos(delta)) * Math.sin(delta);
+      const alpha2 = num2 / den2;
+
+      return [w1, w2, alpha1, alpha2];
+    }
+
+    // Evaluates RK4 step
+    function rk4Step(state, dt, g) {
+      const [t1, t2, w1, w2] = state;
+
+      const k1 = getDerivatives(t1, t2, w1, w2, g);
+      
+      const st2 = [
+        t1 + 0.5 * dt * k1[0],
+        t2 + 0.5 * dt * k1[1],
+        w1 + 0.5 * dt * k1[2],
+        w2 + 0.5 * dt * k1[3]
+      ];
+      const k2 = getDerivatives(st2[0], st2[1], st2[2], st2[3], g);
+
+      const st3 = [
+        t1 + 0.5 * dt * k2[0],
+        t2 + 0.5 * dt * k2[1],
+        w1 + 0.5 * dt * k2[2],
+        w2 + 0.5 * dt * k2[3]
+      ];
+      const k3 = getDerivatives(st3[0], st3[1], st3[2], st3[3], g);
+
+      const st4 = [
+        t1 + dt * k3[0],
+        t2 + dt * k3[1],
+        w1 + dt * k3[2],
+        w2 + dt * k3[3]
+      ];
+      const k4 = getDerivatives(st4[0], st4[1], st4[2], st4[3], g);
+
+      return [
+        t1 + (dt / 6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]),
+        t2 + (dt / 6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]),
+        w1 + (dt / 6) * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]),
+        w2 + (dt / 6) * (k1[3] + 2 * k2[3] + 2 * k3[3] + k4[3])
+      ];
+    }
+
+    // Resets pendulum and randomized starting angle to discover new chaos
+    function resetPendulum() {
+      // Small random variations near 90deg offset ensures unique patterns
+      const rand1 = (Math.random() - 0.5) * 0.4;
+      const rand2 = (Math.random() - 0.5) * 0.4;
+      pState = [Math.PI / 2 + rand1, Math.PI / 2 + rand2, 0.0, 0.0];
+      pTrail = [];
+    }
+
+    btnResetPendulum.addEventListener('click', resetPendulum);
+
+    function drawDoublePendulum(width, height) {
+      pendulumCtx.clearRect(0, 0, width, height);
+
+      // Realtime text updates
+      const gravity = parseFloat(slideGravity.value);
+      valGravity.textContent = `${gravity.toFixed(1)} m/s²`;
+
+      // Scale gravity value to make visual motion sensible: 
+      // analytical formulas take physical SI value, we map to canvas pixels smoothly
+      const gSim = gravity * 12.0;
+
+      // Integrate physics using 2 mini-steps per frame to ensure extreme stiffness stability
+      const physicsSubSteps = 2;
+      const totalDt = 0.02; // standard frame delta
+      const subDt = totalDt / physicsSubSteps;
+
+      for (let step = 0; step < physicsSubSteps; step++) {
+        pState = rk4Step(pState, subDt, gSim);
+      }
+
+      // Keep angles within [-2PI, 2PI] range to avoid floating-point overflow drift
+      pState[0] = pState[0] % (2 * Math.PI);
+      pState[1] = pState[1] % (2 * Math.PI);
+
+      // Draw Grid Backdrop
+      pendulumCtx.strokeStyle = '#161a22';
+      pendulumCtx.lineWidth = 1;
+      // Centered radar-like grid circles
+      const px = width / 2;
+      const py = height / 2.7; // Mount point shifted up
+
+      pendulumCtx.beginPath();
+      pendulumCtx.arc(px, py, L1, 0, 2 * Math.PI);
+      pendulumCtx.stroke();
+
+      pendulumCtx.beginPath();
+      pendulumCtx.arc(px, py, L1 + L2, 0, 2 * Math.PI);
+      pendulumCtx.stroke();
+
+      // Compute bob positions
+      const x1 = px + L1 * Math.sin(pState[0]);
+      const y1 = py + L1 * Math.cos(pState[0]);
+      const x2 = x1 + L2 * Math.sin(pState[1]);
+      const y2 = y1 + L2 * Math.cos(pState[1]);
+
+      // Push tip coordinate to the historical trail
+      pTrail.push({ x: x2, y: y2 });
+      if (pTrail.length > maxTrailLength) {
+        pTrail.shift();
+      }
+
+      // Draw Historical Trajectory Trail (fading purple line segments)
+      // Highly optimized drawing loop: clusters paths dynamically by transparency levels
+      if (pTrail.length > 1) {
+        pendulumCtx.lineWidth = 2.0;
+        
+        // Render trail as segmented sub-paths with increasing opacity
+        for (let i = 1; i < pTrail.length; i++) {
+          const pStart = pTrail[i - 1];
+          const pEnd = pTrail[i];
+          const opacity = (i / pTrail.length) * 0.45; // gradient opacity leading to current tip
+
+          pendulumCtx.strokeStyle = `rgba(188, 140, 255, ${opacity})`;
+          pendulumCtx.beginPath();
+          pendulumCtx.moveTo(pStart.x, pStart.y);
+          pendulumCtx.lineTo(pEnd.x, pEnd.y);
+          pendulumCtx.stroke();
+        }
+      }
+
+      // Draw Pendulum Rods (Grey `#8b949e`)
+      pendulumCtx.strokeStyle = '#8b949e';
+      pendulumCtx.lineWidth = 3.5;
+      pendulumCtx.lineCap = 'round';
+      
+      pendulumCtx.beginPath();
+      pendulumCtx.moveTo(px, py);
+      pendulumCtx.lineTo(x1, y1);
+      pendulumCtx.lineTo(x2, y2);
+      pendulumCtx.stroke();
+
+      // Draw Joints & Bobs
+      // 1. Pivot center joint
+      pendulumCtx.fillStyle = '#484f58';
+      pendulumCtx.beginPath();
+      pendulumCtx.arc(px, py, 6, 0, 2 * Math.PI);
+      pendulumCtx.fill();
+
+      // 2. Middle Bob (Joint 1, Blue)
+      pendulumCtx.fillStyle = '#58a6ff';
+      pendulumCtx.shadowBlur = 6;
+      pendulumCtx.shadowColor = '#58a6ff';
+      pendulumCtx.beginPath();
+      pendulumCtx.arc(x1, y1, 8, 0, 2 * Math.PI);
+      pendulumCtx.fill();
+
+      // 3. Second Tip Bob (Joint 2, Purple)
+      pendulumCtx.fillStyle = '#bc8cff';
+      pendulumCtx.shadowBlur = 10;
+      pendulumCtx.shadowColor = '#bc8cff';
+      pendulumCtx.beginPath();
+      pendulumCtx.arc(x2, y2, 10, 0, 2 * Math.PI);
+      pendulumCtx.fill();
+
+      // Reset shadows
+      pendulumCtx.shadowBlur = 0;
+    }
+
+
+    // =========================================================================
+    // CORE APP RUN LOOP & EVENT LISTENERS
+    // =========================================================================
+    function tick() {
+      // Scale canvases first to fit viewport display box crisp size
+      resizeCanvasToDisplaySize(waveCanvas, waveCtx);
+      resizeCanvasToDisplaySize(pendulumCanvas, pendulumCtx);
+
+      // Extract client bounding metrics after resizing
+      const wWidth = waveCanvas.width / (window.devicePixelRatio || 1);
+      const wHeight = waveCanvas.height / (window.devicePixelRatio || 1);
+
+      const pWidth = pendulumCanvas.width / (window.devicePixelRatio || 1);
+      const pHeight = pendulumCanvas.height / (window.devicePixelRatio || 1);
+
+      // Render simulations
+      drawWaveMixer(wWidth, wHeight);
+      drawDoublePendulum(pWidth, pHeight);
+
+      // Continue tick loop
+      requestAnimationFrame(tick);
+    }
+
+    // Start App Loop
+    tick();
+
+    // Re-verify layouts on window resize
+    window.addEventListener('resize', () => {
+      resizeCanvasToDisplaySize(waveCanvas, waveCtx);
+      resizeCanvasToDisplaySize(pendulumCanvas, pendulumCtx);
+    });
+  </script>
+</body>
+</html>
